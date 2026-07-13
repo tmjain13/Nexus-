@@ -1,0 +1,327 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // -------------------------------------------------------------------------
+    // 1. GLOBALS & HELPERS
+    // -------------------------------------------------------------------------
+    
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // -------------------------------------------------------------------------
+    // 2. DEFAULT DENY
+    // -------------------------------------------------------------------------
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // -------------------------------------------------------------------------
+    // 3. COLLECTIONS
+    // -------------------------------------------------------------------------
+
+    // USERS
+    match /users/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      // Allow updates to starredMessages, blockedUsers, etc.
+      // We relax the createdAt = request.time requirement for updates, so existing users can be updated without passing createdAt.
+      allow update: if isOwner(userId) 
+          && (incoming().createdAt == existing().createdAt || incoming().createdAt == request.time);
+
+    function isValidUser(data) {
+        return data.displayName is string && data.displayName.size() >= 2 && data.displayName.size() <= 100
+            && (data.username == null || (data.username is string && data.username.size() <= 50))
+            && data.email is string && data.email.size() <= 100
+            && (data.photoURL == null || (data.photoURL is string && data.photoURL.size() <= 1000))
+            && (data.bio == null || (data.bio is string && data.bio.size() <= 500))
+            && (data.about == null || (data.about is string && data.about.size() <= 500))
+            && (data.phone == null || (data.phone is string && data.phone.size() <= 20))
+            && (data.blockedUsers == null || (data.blockedUsers is list && data.blockedUsers.size() <= 1000))
+            && (data.contactOnlyStatus == null || data.contactOnlyStatus is bool)
+            && (data.starredMessages == null || (data.starredMessages is list && data.starredMessages.size() <= 5000))
+            && (data.isVerified == null || data.isVerified is bool);
+      }
+
+      match /contacts/{contactId} {
+        allow read: if isOwner(userId);
+        allow write: if isOwner(userId);
+      }
+
+      match /chats/{chatId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /emailAccounts/{accountId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /emailThreads/{threadId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /presence/{presenceId} {
+        allow read: if isSignedIn();
+        allow write: if isOwner(userId);
+      }
+
+      match /notificationQueue/{queueId} {
+        allow read, write: if isOwner(userId);
+        allow create: if isSignedIn();
+      }
+
+      match /peaceModeStats/{statId} {
+        allow read, write: if isOwner(userId);
+      }
+
+      match /peaceModeAutoReplies/{replyId} {
+        allow read, write: if isOwner(userId);
+      }
+    }
+
+    // STATUSES
+    match /statuses/{statusId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(incoming().userId) && isValidStatus(incoming());
+      allow update: if isSignedIn() && (
+        isOwner(existing().userId) ||
+        (
+          incoming().diff(existing()).affectedKeys().hasOnly(['views']) &&
+          incoming().views.hasAll(existing().views) &&
+          incoming().views.size() == existing().views.size() + 1 &&
+          incoming().views[incoming().views.size() - 1] == request.auth.uid
+        )
+      );
+      allow delete: if isSignedIn() && isOwner(existing().userId);
+
+      function isValidStatus(data) {
+        return data.userId is string 
+            && data.type in ['image', 'video', 'text']
+            && data.createdAt == request.time
+            && data.expiresAt > request.time;
+      }
+    }
+
+    // CALLS
+    match /calls/{callId} {
+      allow read: if isSignedIn() && (resource == null || request.auth.uid in existing().participants);
+      allow create: if isSignedIn() && request.auth.uid in incoming().participants;
+      allow update: if isSignedIn() && request.auth.uid in existing().participants;
+      allow delete: if isSignedIn() && request.auth.uid in existing().participants;
+
+      match /callerCandidates/{candidateId} {
+        allow read, write: if isSignedIn();
+      }
+      match /calleeCandidates/{candidateId} {
+        allow read, write: if isSignedIn();
+      }
+    }
+
+    // POSTS
+    match /posts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isValidPost(incoming()) && isOwner(incoming().authorId);
+      allow update: if isSignedIn() && (
+        // Owner can edit content
+        (isOwner(existing().authorId) && isValidPost(incoming())) ||
+        // Anyone can like (if we implement atomic increments)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['likesCount', 'commentsCount']))
+      );
+      allow delete: if isSignedIn() && isOwner(existing().authorId);
+
+      function isValidPost(data) {
+        return data.authorId is string
+            && data.content is string && data.content.size() <= 2000
+            && data.createdAt == request.time;
+      }
+    }
+
+    // CHATS & MESSAGES
+    match /chats/{chatId} {
+      allow read: if isSignedIn() && (
+        chatId == 'ai_companion_' + request.auth.uid || 
+        (resource != null && (request.auth.uid in resource.data.participants || (resource.data.type == 'group' && request.auth.uid in resource.data.members)))
+      );
+      allow create: if isSignedIn() && (
+        chatId == 'ai_companion_' + request.auth.uid || 
+        (request.auth.uid in incoming().participants && incoming().participants.size() >= 2)
+      );
+      allow update: if isSignedIn() && (
+        chatId == 'ai_companion_' + request.auth.uid ||
+        request.auth.uid in existing().participants || 
+        request.auth.uid in existing().admins ||
+        (existing().type == 'group' && request.auth.uid in existing().members)
+      ) && (
+        // Only allow updating key chat attributes
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'lastMessage', 'updatedAt', 'participants', 'members', 'admins', 'groupPhoto', 'groupName', 'themePackage',
+          'name', 'description', 'avatar', 'settings'
+        ])
+      );
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          chatId == 'ai_companion_' + request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        );
+        allow create: if isSignedIn() && (
+          (isOwner(incoming().senderId) && incoming().senderId != 'nexus-ai' && incoming().senderId != 'ai_companion') || 
+          (incoming().senderId == 'nx-ai' && get(/databases/$(database)/documents/chats/$(chatId)).data.isAI == true) ||
+          (incoming().senderId == 'ai_companion' && chatId == 'ai_companion_' + request.auth.uid)
+        ) && (
+          chatId == 'ai_companion_' + request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        ) && (
+          incoming().text is string && incoming().text.size() <= 5000
+        ) && (
+          get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' || 
+          !isBlockedByPeer(chatId)
+        );
+        
+        allow update: if isSignedIn() && (
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        ) && (
+          // Senders can edit their own messages; admins can edit any message (admin override)
+          (request.auth.uid == existing().senderId || request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.admins)
+        ) && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'reactions', 'isDeleted', 'text', 'type', 'mediaUrl', 'isOpened', 'status', 'readBy', 'deliveredTo',
+            'isEdited', 'editedAt', 'edits', 'encryptedData', 'originalText', 'originalEncryptedData', 'editedByAdmin', 'hideHistory'
+          ])
+        ) && (
+          // Enforce max 5 revisions per message transmission to prevent database spamming
+          (!incoming().keys().contains('edits') || incoming().edits.size() <= 5)
+        );
+        
+        allow delete: if false; // Prefer soft deletes for chat history integrity
+      }
+
+      match /memberKeys/{userId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        );
+        allow write: if isSignedIn() && (
+          request.auth.uid == userId && (
+            request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+            (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+          )
+        );
+      }
+
+      match /typing/{typistId} {
+        allow read: if isSignedIn() && (
+          chatId == 'ai_companion_' + request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        );
+        allow write: if (isOwner(typistId) || (typistId == 'ai_companion' && chatId == 'ai_companion_' + request.auth.uid)) && (
+          chatId == 'ai_companion_' + request.auth.uid ||
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants ||
+          (get(/databases/$(database)/documents/chats/$(chatId)).data.type == 'group' && request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.members)
+        );
+      }
+    }
+
+    // GROUP CHATS
+    match /groupChat/{chatId} {
+      allow read: if isSignedIn() && (
+        resource != null && request.auth.uid in resource.data.participants
+      );
+      allow create: if isSignedIn() && (
+        request.auth.uid in incoming().participants && incoming().participants.size() >= 2
+      );
+      allow update: if isSignedIn() && (
+        request.auth.uid in existing().participants || 
+        request.auth.uid in existing().admins
+      ) && (
+        incoming().diff(existing()).affectedKeys().hasOnly([
+          'lastMessage', 'updatedAt', 'participants', 'admins', 'groupPhoto', 'groupName', 'themePackage'
+        ])
+      );
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.participants
+        );
+        allow create: if isSignedIn() && (
+          isOwner(incoming().senderId)
+        ) && (
+          request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.participants
+        ) && (
+          incoming().text is string && incoming().text.size() <= 5000
+        );
+        
+        allow update: if isSignedIn() && (
+          request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.participants
+        ) && (
+          // Senders can edit their own messages; admins can edit any message (admin override)
+          (request.auth.uid == existing().senderId || request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.admins)
+        ) && (
+          incoming().diff(existing()).affectedKeys().hasOnly([
+            'reactions', 'isDeleted', 'text', 'type', 'mediaUrl', 'isOpened', 'status', 'readBy', 'deliveredTo',
+            'isEdited', 'editedAt', 'edits', 'encryptedData', 'originalText', 'originalEncryptedData', 'editedByAdmin', 'hideHistory'
+          ])
+        ) && (
+          // Enforce max 5 revisions per message transmission to prevent database spamming
+          (!incoming().keys().contains('edits') || incoming().edits.size() <= 5)
+        );
+        
+        allow delete: if false;
+      }
+
+      match /typing/{typistId} {
+        allow read: if isSignedIn() && (
+          request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.participants
+        );
+        allow write: if isOwner(typistId) && (
+          request.auth.uid in get(/databases/$(database)/documents/groupChat/$(chatId)).data.participants
+        );
+      }
+    }
+
+    function isBlockedByPeer(chatId) {
+      let chatDoc = get(/databases/$(database)/documents/chats/$(chatId));
+      let participants = chatDoc.data.participants;
+      let peerId = participants[0] == request.auth.uid ? participants[1] : participants[0];
+      let peerDoc = get(/databases/$(database)/documents/users/$(peerId));
+      return peerDoc != null 
+        && peerDoc.data.blockedUsers != null 
+        && request.auth.uid in peerDoc.data.blockedUsers;
+    }
+
+    // FOLLOWS
+    match /follows/{followId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() && isOwner(incoming().followerId);
+      allow delete: if isSignedIn() && isOwner(existing().followerId);
+    }
+
+    // SCHEDULED MESSAGES
+    match /scheduledMessages/{msgId} {
+      allow read: if isSignedIn() && isOwner(existing().senderId);
+      allow create: if isSignedIn() && isOwner(incoming().senderId);
+      allow delete: if isSignedIn() && isOwner(existing().senderId);
+    }
+  }
+}

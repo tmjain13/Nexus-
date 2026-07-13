@@ -1,0 +1,220 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile information",
+      "type": "object",
+      "properties": {
+        "displayName": { "type": "string" },
+        "username": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "phone": { "type": "string" },
+        "photoURL": { "type": "string" },
+        "bio": { "type": "string" },
+        "about": { "type": "string" },
+        "followersCount": { "type": "integer" },
+        "followingCount": { "type": "integer" },
+        "isVerified": { "type": "boolean" },
+        "lastSeen": { "type": "string", "format": "date-time" },
+        "status": { "type": "string" },
+        "blockedUsers": { "type": "array" },
+        "contactOnlyStatus": { "type": "boolean" },
+        "starredMessages": { "type": "array" },
+        "archivedChats": { "type": "array" },
+        "notificationSettings": { "type": "object" },
+        "contactCategories": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["displayName", "username", "email", "createdAt"]
+    },
+    "UserChat": {
+      "title": "UserChat",
+      "description": "User-specific settings and state for a chat",
+      "type": "object",
+      "properties": {
+        "pinned": { "type": "boolean" }
+      }
+    },
+    "Post": {
+      "title": "Post",
+      "description": "Social feed post",
+      "type": "object",
+      "properties": {
+        "authorId": { "type": "string" },
+        "authorPhoto": { "type": "string" },
+        "authorName": { "type": "string" },
+        "content": { "type": "string" },
+        "mediaUrls": { "type": "array" },
+        "type": { "type": "string", "enum": ["text", "image", "video"] },
+        "likesCount": { "type": "integer" },
+        "commentsCount": { "type": "integer" },
+        "isAIOk": { "type": "boolean" },
+        "toxicScore": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["authorId", "content", "createdAt"]
+    },
+    "Chat": {
+      "title": "Chat",
+      "description": "A conversation between users",
+      "type": "object",
+      "properties": {
+        "participants": { "type": "array" },
+        "admins": { "type": "array" },
+        "lastMessage": { "type": "object" },
+        "isGroup": { "type": "boolean" },
+        "groupName": { "type": "string" },
+        "groupPhoto": { "type": "string" },
+        "isAI": { "type": "boolean" }
+      }
+    },
+    "Message": {
+      "title": "Message",
+      "description": "A message within a chat",
+      "type": "object",
+      "properties": {
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "audio"] },
+        "status": { "type": "string", "enum": ["sent", "delivered", "read"] },
+        "reactions": { "type": "object" },
+        "isAI": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Follow": {
+      "title": "Follow",
+      "description": "A follow relationship between two users",
+      "type": "object",
+      "properties": {
+        "followerId": { "type": "string" },
+        "followingId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Status": {
+      "title": "Status",
+      "description": "Ephemeral status update (Stories)",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userPhoto": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["image", "video", "text"] },
+        "text": { "type": "string" },
+        "views": { "type": "array" },
+        "expiresAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "createdAt", "expiresAt"]
+    },
+    "Call": {
+      "title": "Call",
+      "description": "Call history record",
+      "type": "object",
+      "properties": {
+        "callerId": { "type": "string" },
+        "receiverId": { "type": "string" },
+        "participants": { "type": "array" },
+        "type": { "type": "string", "enum": ["voice", "video"] },
+        "status": { "type": "string", "enum": ["missed", "completed", "rejected"] },
+        "duration": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ScheduledMessage": {
+      "title": "ScheduledMessage",
+      "description": "A message scheduled to be sent in the future",
+      "type": "object",
+      "properties": {
+        "chatId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "mediaUrl": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "image", "audio"] },
+        "scheduledAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "status": { "type": "string", "enum": ["pending", "sent", "failed"] }
+      },
+      "required": ["chatId", "senderId", "text", "scheduledAt", "createdAt", "status"]
+    },
+    "EmailAccount": {
+      "title": "EmailAccount",
+      "description": "Connected email account details",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "provider": { "type": "string", "enum": ["gmail", "outlook", "yahoo", "imap"] },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "avatar": { "type": "string" },
+        "connectedAt": { "type": "string", "format": "date-time" },
+        "lastSync": { "type": "string", "format": "date-time" },
+        "isActive": { "type": "boolean" }
+      },
+      "required": ["id", "provider", "email", "displayName", "isActive"]
+    },
+    "EmailThread": {
+      "title": "EmailThread",
+      "description": "A conversation thread of email messages",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "subject": { "type": "string" },
+        "participants": { "type": "array" },
+        "messages": { "type": "array" },
+        "lastMessageAt": { "type": "string", "format": "date-time" },
+        "isUnread": { "type": "boolean" }
+      },
+      "required": ["id", "subject", "participants", "messages", "lastMessageAt", "isUnread"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "/users/{userId}/chats/{chatId}": {
+      "schema": "UserChat",
+      "description": "User-specific chat configurations (e.g. pinned state)"
+    },
+    "/users/{userId}/emailAccounts/{accountId}": {
+      "schema": "EmailAccount",
+      "description": "Connected email accounts"
+    },
+    "/users/{userId}/emailThreads/{threadId}": {
+      "schema": "EmailThread",
+      "description": "Email conversation threads"
+    },
+    "/posts/{postId}": {
+      "schema": "Post",
+      "description": "Universal social feed"
+    },
+    "/chats/{chatId}": {
+      "schema": "Chat",
+      "description": "Conversation metadata"
+    },
+    "/chats/{chatId}/messages/{messageId}": {
+      "schema": "Message",
+      "description": "Messages within a conversation"
+    },
+    "/follows/{followId}": {
+      "schema": "Follow",
+      "description": "Follow graph"
+    },
+    "/statuses/{statusId}": {
+      "schema": "Status",
+      "description": "Ephemeral updates"
+    },
+    "/calls/{callId}": {
+      "schema": "Call",
+      "description": "Call history"
+    },
+    "/scheduledMessages/{msgId}": {
+      "schema": "ScheduledMessage",
+      "description": "Messages waiting to be sent"
+    }
+  }
+}

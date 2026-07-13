@@ -1,0 +1,110 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&family=Outfit:wght@400;600;800&family=Playfair+Display:wght@400;700&family=Orbitron:wght@500;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+@import "leaflet/dist/leaflet.css";
+
+@custom-variant dark (&:is(.dark *));
+
+@theme {
+  --font-sans: "Inter", "Segoe UI", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  --font-display: "Outfit", "Segoe UI", sans-serif;
+
+  /* Nexus Dark Design System Color Palette */
+  --color-primary: #0a0e1a;
+  --color-bg-primary: #0a0e1a;
+  --color-bg-secondary: #111827;
+  --color-bg-elevated: #1e293b;
+  --color-bg-card: #1a1f2e;
+  --color-accent: #f59e0b;
+  --color-accent-glow: rgba(245, 158, 11, 0.15);
+  --color-text-primary: #f8fafc;
+  --color-text-secondary: #94a3b8;
+  --color-text-muted: #64748b;
+  --color-border-subtle: rgba(30, 41, 59, 0.8);
+  --color-success: #10b981;
+  --color-error: #ef4444;
+
+  /* Legacy Fallback compatibility */
+  --color-wa-primary: #f59e0b;
+  --color-wa-secondary: #111827;
+  --color-wa-dark: #0a0e1a;
+  --color-wa-teal: #f59e0b;
+  --color-wa-blue: #f59e0b;
+  --color-wa-light-bg: #0a0e1a;
+  --color-wa-chat-bg: #0a0e1a;
+  --color-wa-header: #111827;
+  --color-wa-bubble-me: #1a1f2e;
+  --color-wa-bubble-them: #111827;
+  --color-wa-dark-bg: #0a0e1a;
+  --color-wa-dark-panel: #111827;
+  --color-wa-dark-chat-bg: #0a0e1a;
+  --color-wa-dark-header: #111827;
+  --color-wa-dark-bubble-me: #1e293b;
+  --color-wa-dark-bubble-them: #111827;
+  --color-wa-dark-input: #1e293b;
+  --color-wa-dark-hover: #1e293b;
+
+  --shadow-card: 0 4px 24px rgba(0, 0, 0, 0.4);
+  --shadow-elevated: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-accent-glow: 0 0 20px rgba(245, 158, 11, 0.15);
+}
+
+@layer base {
+  html, body, #root {
+    background-color: #0a0e1a !important;
+    color: #f8fafc !important;
+    min-height: 100vh;
+    font-family: "Inter", "Segoe UI", ui-sans-serif, system-ui, sans-serif;
+  }
+}
+
+/* Custom Scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: #0a0e1a;
+}
+::-webkit-scrollbar-thumb {
+  background: #f59e0b;
+  border-radius: 9999px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #d97706;
+}
+
+@media (max-width: 768px) {
+  ::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Glassmorphism Classes */
+.glass-card {
+  background: rgba(30, 41, 59, 0.6);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(30, 41, 59, 0.8);
+}
+
+.glass-modal {
+  background: rgba(17, 24, 39, 0.95);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border: 1px solid rgba(30, 41, 59, 0.8);
+}
+
+.glass-overlay {
+  background: rgba(0, 0, 0, 0.6);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}

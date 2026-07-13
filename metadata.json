@@ -1,0 +1,8 @@
+{
+  "name": "Enclave OS",
+  "description": "An AI-Driven OS showcasing Nexus, Portal, Syndicate, and Command Center, powered by Peace AI.",
+  "requestFramePermissions": ["camera", "microphone"],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
