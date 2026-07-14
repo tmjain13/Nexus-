@@ -25,7 +25,7 @@ export const OCRPreview: React.FC<OCRPreviewProps> = ({
   const [isEditingText, setIsEditingText] = useState(false);
 
   // Parse or edit metadata values live
-  const [metadata, setMetadata] = useState<any>(ocrResult.metadata || {});
+  const [metadata, setMetadata] = useState<any>({ ...(ocrResult.metadata || {}), confidence: ocrResult.confidence });
 
   const handleCopy = () => {
     navigator.clipboard.writeText(editedText);

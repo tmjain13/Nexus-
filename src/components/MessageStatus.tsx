@@ -28,7 +28,7 @@ export const MessageStatus: React.FC<MessageStatusProps> = ({
   if (isGroup) {
     const readers = Object.keys(readBy || {}).filter(uid => uid !== senderId);
     if (readers.length === 0) {
-      return <Check size={14} className="text-zinc-400" title="Sent" />;
+      return <span title="Sent"><Check size={14} className="text-zinc-400" /></span>;
     }
     const displayedReaders = readers.slice(0, 3);
     const extraCount = readers.length - displayedReaders.length;
@@ -59,15 +59,15 @@ export const MessageStatus: React.FC<MessageStatusProps> = ({
 
   // Hide read receipts when Peace Mode is enabled
   if (isPeaceModeActive) {
-    return <Check size={14} className="text-zinc-400" title="Sent" />;
+    return <span title="Sent"><Check size={14} className="text-zinc-400" /></span>;
   }
 
   if (status === 'read') {
-    return <CheckCheck size={14} className="text-[#3b82f6]" title="Read" />;
+    return <span title="Read"><CheckCheck size={14} className="text-[#3b82f6]" /></span>;
   } else if (status === 'delivered') {
-    return <CheckCheck size={14} className="text-zinc-400" title="Delivered" />;
+    return <span title="Delivered"><CheckCheck size={14} className="text-zinc-400" /></span>;
   } else {
-    return <Check size={14} className="text-zinc-400" title="Sent" />;
+    return <span title="Sent"><Check size={14} className="text-zinc-400" /></span>;
   }
 };
 

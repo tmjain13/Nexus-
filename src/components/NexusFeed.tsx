@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { cn } from '../lib/utils';
 import { secureFetch } from '../lib/secureFetch';
+import { sanitizeHtml } from '../lib/sanitize';
 
 
 export interface NexusActivity {
@@ -263,7 +264,7 @@ export default function NexusFeed({ onClose }: NexusFeedProps) {
           ) : aiSummary ? (
             <div 
               className="text-xs font-sans text-zinc-300 leading-relaxed text-left max-w-full overflow-hidden briefing-markup"
-              dangerouslySetInnerHTML={{ __html: aiSummary }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtml(aiSummary) }}
             />
           ) : (
             <p className="text-[10px] font-mono text-zinc-500 uppercase text-center py-4">Briefing ledger is vacant. Trigger synchronization.</p>

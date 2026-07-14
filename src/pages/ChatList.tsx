@@ -136,7 +136,6 @@ export default function ChatList() {
   const [listToast, setListToast] = useState<{ message: string, type: 'success' | 'error' | 'info' } | null>(null);
 
   const [searchTerm, setSearchTerm] = useState('');
-  const [isListening, setIsListening] = useState(false);
   const [uploadingStatus, setUploadingStatus] = useState(false);
   const [isStatusModalOpen, setIsStatusModalOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -458,47 +457,6 @@ export default function ChatList() {
       setActiveStatusIndex(activeStatusIndex - 1);
     }
   }, [activeStatusIndex]);
-
-  // Voice Search dictation with Web Speech API
-  const handleVoiceSearch = () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      setListToast({ message: "Voice protocol unsupported on this terminal.", type: 'info' });
-      return;
-    }
-
-    if (isListening) {
-      setIsListening(false);
-      return;
-    }
-
-    const rec = new SpeechRecognition();
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = 'en-US';
-
-    rec.onstart = () => {
-      setIsListening(true);
-      setListToast({ message: "Listening... speak now", type: 'info' });
-    };
-
-    rec.onerror = (e: any) => {
-      console.error("Speech error", e);
-      setIsListening(false);
-    };
-
-    rec.onend = () => {
-      setIsListening(false);
-    };
-
-    rec.onresult = (e: any) => {
-      const transcript = e.results[0][0].transcript;
-      setSearchTerm(transcript);
-      setListToast({ message: `Searching: "${transcript}"`, type: 'success' });
-    };
-
-    rec.start();
-  };
 
   // QR Code Reader implementation
   const startQRScanner = async () => {
@@ -823,12 +781,10 @@ export default function ChatList() {
       <FloatingSearch
         value={searchTerm}
         onChange={setSearchTerm}
-        viewMode={layout}
-        onViewModeChange={(mode) => setLayout(mode)}
+        layout={layout}
+        onChangeLayout={(mode) => setLayout(mode)}
         sortMode={sortMode}
-        onSortModeChange={(mode) => setSortMode(mode)}
-        onVoiceSearchClick={handleVoiceSearch}
-        isListening={isListening}
+        onChangeSortMode={(mode) => setSortMode(mode)}
       />
 
       {/* 3. SMART FOLDERS CATEGORY TICKERS */}
@@ -897,12 +853,10 @@ export default function ChatList() {
                     key={chat.id}
                     chat={chat}
                     unreadCount={unreadCounts[chat.id]}
-                    typers={typingChats[chat.id]}
-                    draft={drafts[chat.id]?.text}
-                    viewMode={layout}
-                                        isPinned={isPinned}
+                    typingUsers={typingChats[chat.id]}
+                    draftText={drafts[chat.id]?.text}
+                    isPinned={isPinned}
                     isFavorite={isFav}
-                    currentUserUid={user?.uid || ''}
                     onChatClick={(id) => navigate(`/chats/${id}`)}
                     onLongPress={(e, id) => handleItemLongPress(id, (e as React.MouseEvent).clientX, (e as React.MouseEvent).clientY)}
                     onSwipeSummarize={(id, title) => {}}

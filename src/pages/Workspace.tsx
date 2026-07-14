@@ -11,6 +11,7 @@ import {
 import { useAuth } from '../context/AuthContext';
 import { cn } from '../lib/utils';
 import { secureFetch } from '../lib/secureFetch';
+import { sanitizeHtml } from '../lib/sanitize';
 import { CalendarView } from '../components/CalendarView';
 import { EventCreator } from '../components/EventCreator';
 import { EventDetails } from '../components/EventDetails';
@@ -201,7 +202,7 @@ export default function Workspace() {
 
   // Toggle tasks complete
   const toggleTaskStatus = (id: string) => {
-    const updated = tasks.map(t => t.id === id ? { ...t, status: t.status === 'pending' ? 'completed' : 'pending' as const } : t);
+    const updated = tasks.map(t => t.id === id ? { ...t, status: (t.status === 'pending' ? 'completed' : 'pending') as WorkspaceTask['status'] } : t);
     setTasks(updated);
     if (user) {
       localStorage.setItem(`enclave_tasks_${user.uid}`, JSON.stringify(updated));
@@ -990,8 +991,8 @@ Safety coefficient: 2.45 [VERIFIED SUCCESSFUL]</pre>
                           <div className="h-44 w-full">
                             <ResponsiveContainer width="100%" height="100%">
                               <BarChart data={chartData} margin={{ top: 10, right: 10, left: -25, bottom: 0 }}>
-                                <XAxis dataKey="name" stroke="#888888" fontSize={9} fontClassName="font-mono" tickLine={false} axisLine={false} />
-                                <YAxis stroke="#888888" fontSize={9} fontClassName="font-mono" tickLine={false} axisLine={false} />
+                                <XAxis dataKey="name" stroke="#888888" fontSize={9} className="font-mono" tickLine={false} axisLine={false} />
+                                <YAxis stroke="#888888" fontSize={9} className="font-mono" tickLine={false} axisLine={false} />
                                 <Tooltip 
                                   contentStyle={{ backgroundColor: '#18181b', borderColor: '#27272a', borderRadius: '12px', fontSize: '10px' }}
                                   itemStyle={{ color: '#ffffff' }}
@@ -1170,7 +1171,7 @@ Safety coefficient: 2.45 [VERIFIED SUCCESSFUL]</pre>
                         </div>
                         <div 
                            className="rich-response space-y-2 text-zinc-300"
-                           dangerouslySetInnerHTML={{ __html: peaceResponseHTML }}
+                           dangerouslySetInnerHTML={{ __html: sanitizeHtml(peaceResponseHTML) }}
                         />
                       </div>
                     )}

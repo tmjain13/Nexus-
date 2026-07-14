@@ -171,7 +171,7 @@ export default function Profile() {
       if (e.key === 'Escape' && vaultUnlocked && activeTab === 'vault') {
         setVaultUnlocked(false);
         setVaultPasswordInput('');
-        toast.success("Vault quick-hidden", { icon: <Shield size={16} /> });
+        setToast({ message: "Vault quick-hidden", type: 'success' });
       }
     };
 
@@ -1835,7 +1835,7 @@ export default function Profile() {
                     if (vaultUnlocked) {
                       setVaultUnlocked(false);
                       setVaultPasswordInput('');
-                      toast.success("Vault secured via gesture");
+                      setToast({ message: "Vault secured via gesture", type: 'success' });
                     }
                   }}
                   className="bg-[#fbf7f3] border border-zinc-200 rounded-2xl p-4 shadow-sm relative overflow-hidden min-h-[300px] flex flex-col items-center justify-center cursor-default"
@@ -1917,7 +1917,7 @@ export default function Profile() {
                                   onClick={() => {
                                     setVaultUnlocked(false);
                                     setVaultPasswordInput('');
-                                    toast.success("Vault quick-hidden", { icon: <Shield size={16} /> });
+                                    setToast({ message: "Vault quick-hidden", type: 'success' });
                                   }}
                                   className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2"
                                   title="Quick Hide (ESC)"
@@ -2088,7 +2088,8 @@ export default function Profile() {
 												  if (file) {
 													const reader = new FileReader();
 													reader.onloadend = () => {
-													  setNewVaultItem(prev => ({ ...prev, content: reader.result, url: reader.result }));
+													  const dataUrl = reader.result as string;
+													  setNewVaultItem(prev => ({ ...prev, content: dataUrl, url: dataUrl }));
 													  setToast({ message: "Media encrypted in secure enclave", type: 'success' });
 													};
 													reader.readAsDataURL(file);
@@ -2107,7 +2108,7 @@ export default function Profile() {
 											{newVaultItem.content && (
 											  <div className="relative border border-zinc-200 rounded-lg overflow-hidden h-14 bg-zinc-50 flex items-center justify-between p-1.5 mt-1">
 												<div className="flex items-center gap-2">
-												  <img src={newVaultItem.content} className="w-10 h-10 object-cover rounded shadow" onError={(e) => { e.target.style.display = 'none'; }} />
+												  <img src={newVaultItem.content} className="w-10 h-10 object-cover rounded shadow" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
 												  <span className="text-[9px] font-mono text-zinc-500 truncate max-w-[150px]">Enclave Media Encrypted</span>
 												</div>
 												<button 

@@ -1277,7 +1277,7 @@ Use custom aesthetic touches like:
     }
   });
 
-  app.post("/api/ai/moderate", aiLimiter, verifyToken, async (req, res) => {
+  app.post("/api/ai/moderate", async (req, res) => {
     try {
       const { content } = req.body;
       if (!content || typeof content !== "string" || content.length > 2000) {
@@ -1466,10 +1466,7 @@ Important: Respond only with raw, valid JSON. Do not include markdown wraps.`;
                                  html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:description["']/i);
       const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
                         html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
-      const ogImageMatch = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
-                           html.match(/<meta[^>]+content=["']([^"']+)["']/i)[0]?.match(/property=["']og:image["']/i) ? html.match(/<meta[^>]+content=["']([^"']+)["']/i) : null; 
-      // Safer fallback regexes for image extraction
-      const ogImgMatchGeneral = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) || 
+      const ogImgMatchGeneral = html.match(/<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i) ||
                                  html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+property=["']og:image["']/i);
 
       let title = ogTitleMatch ? ogTitleMatch[1] : (titleMatch ? titleMatch[1] : "");

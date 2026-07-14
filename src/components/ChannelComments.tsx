@@ -269,7 +269,7 @@ export function ChannelComments({ channel, postId, isOwner, onClose }: ChannelCo
                       </div>
                       
                       <span className="text-[9px] font-mono text-zinc-500">
-                        {cmt.createdAt ? formatDistanceToNow(cmt.createdAt.toDate ? cmt.createdAt.toDate() : new Date(cmt.createdAt), { addSuffix: true }) : 'Just now'}
+                        {cmt.createdAt ? formatDistanceToNow(cmt.createdAt.toDate(), { addSuffix: true }) : 'Just now'}
                       </span>
                     </div>
 

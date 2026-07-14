@@ -43,7 +43,7 @@ export const SmartFolders: React.FC<SmartFoldersProps> = ({
   const handleAiSortToggle = () => {
     if (onToggleAiSort) onToggleAiSort();
     if (onSortModeChange) {
-      onSortModeChange(sortMode === 'ai-priority' ? 'timestamp' : 'ai-priority');
+      onSortModeChange(sortMode === 'ai-priority' ? 'recent' : 'ai-priority');
     }
   };
 

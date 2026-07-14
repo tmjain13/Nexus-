@@ -15,6 +15,13 @@ import { getMessaging, isSupported } from 'firebase/messaging';
 const configs = (import.meta as any).glob('../../firebase-applet-config.json', { eager: true });
 const rawConfig = (configs['../../firebase-applet-config.json'] as any)?.default || {};
 
+if (!rawConfig.projectId) {
+  console.warn(
+    'firebase-applet-config.json is missing or empty — falling back to a non-functional mock Firebase project. ' +
+    'Auth, Firestore, and Storage calls will fail until a real config is provided.'
+  );
+}
+
 const firebaseConfig = {
   apiKey: rawConfig.apiKey || "AIzaSyDummyKey_RequiredForInitialization",
   authDomain: rawConfig.authDomain || "peaceos-mock.firebaseapp.com",
