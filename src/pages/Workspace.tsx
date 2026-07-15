@@ -15,6 +15,7 @@ import { CalendarView } from '../components/CalendarView';
 import { EventCreator } from '../components/EventCreator';
 import { EventDetails } from '../components/EventDetails';
 import { CalendarEvent } from '../hooks/useCalendar';
+import { WeeklyHeatmap } from '../components/WeeklyHeatmap';
 import { 
   ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, 
   PieChart, Pie, Cell, Legend, BarChart, Bar 
@@ -1971,6 +1972,9 @@ Safety coefficient: 2.45 [VERIFIED SUCCESSFUL]</pre>
                   </AreaChart>
                 </ResponsiveContainer>
               </div>
+
+              {/* D3.js Weekly Communication Activity Heatmap */}
+              <WeeklyHeatmap />
 
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
                 {[

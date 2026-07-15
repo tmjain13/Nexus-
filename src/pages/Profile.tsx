@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, onSnapshot, arrayUnion, arrayRemove, collection, addDoc, serverTimestamp, orderBy, query, deleteDoc } from 'firebase/firestore';
-import { Edit2, Camera, Check, X, MapPin, Link as LinkIcon, Calendar, UserPlus, MessageCircle, MoreHorizontal, ShieldOff, Shield, BadgeCheck, Settings as SettingsIcon, Key, Lock, List, Radio, Bell, Database, Accessibility, Globe, HelpCircle, Users, Image as ImageIcon, ArrowLeft, Search, ScanLine, Bookmark, Star, EyeOff, LayoutGrid, Sparkles, Crown, Loader2, Trash2, Grid2x2, Heart, Mail } from 'lucide-react';
+import { Edit2, Camera, Check, X, MapPin, Link as LinkIcon, Calendar, UserPlus, MessageCircle, MoreHorizontal, ShieldOff, Shield, BadgeCheck, Settings as SettingsIcon, Key, Lock, List, Radio, Bell, Database, Accessibility, Globe, HelpCircle, Users, Image as ImageIcon, ArrowLeft, Search, ScanLine, Bookmark, Star, EyeOff, LayoutGrid, Sparkles, Crown, Loader2, Trash2, Grid2x2, Heart, Mail, Folder, FolderOpen, Info, Code as CodeIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { cn } from '../lib/utils';
@@ -202,6 +202,94 @@ export default function Profile() {
   const [newVaultItem, setNewVaultItem] = useState({ title: '', content: '', type: 'note' });
   const [lightboxImage, setLightboxImage] = useState<string | null>(null);
 
+  // Smart Folder States & Utilities
+  const [selectedFolder, setSelectedFolder] = useState<string>('All');
+  const [isCategorizingAll, setIsCategorizingAll] = useState(false);
+  const [categorizingProgress, setCategorizingProgress] = useState({ current: 0, total: 0 });
+
+  const getFolderForItem = (item: any) => {
+    return item.category || (
+      item.type === 'password' ? "Credentials & Passwords" :
+      item.type === 'media' ? "Media Archives" : "Personal Documents"
+    );
+  };
+
+  const handleAITransformItem = async (item: any) => {
+    if (!currentUser) return;
+    try {
+      setToast({ message: `AI analyzing "${item.title}"...`, type: 'info' });
+      const { secureFetch } = await import('../lib/secureFetch');
+      const response = await secureFetch("/api/ai/vault-categorize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title: item.title,
+          content: item.content || '',
+          type: item.type
+        })
+      });
+      if (!response.ok) throw new Error("Categorization API returned non-200");
+      const result = await response.json();
+      
+      const itemRef = doc(db, 'users', currentUser.uid, 'vault', item.id);
+      await updateDoc(itemRef, {
+        category: result.category,
+        aiReason: result.reason,
+        aiTags: result.tags || []
+      });
+      setToast({ message: `"${item.title}" categorized as ${result.category}!`, type: 'success' });
+    } catch (err) {
+      console.error("AI Categorization failed:", err);
+      setToast({ message: "Smart categorization failed.", type: 'error' });
+    }
+  };
+
+  const handleAICategorizeAll = async () => {
+    if (!currentUser || vaultItems.length === 0) return;
+    setIsCategorizingAll(true);
+    // Categorize items that are not already smart-categorized, or all if everyone is done
+    const uncategorized = vaultItems.filter(item => !item.category);
+    const targetItems = uncategorized.length > 0 ? uncategorized : vaultItems;
+    setCategorizingProgress({ current: 0, total: targetItems.length });
+    
+    try {
+      const { secureFetch } = await import('../lib/secureFetch');
+      for (let i = 0; i < targetItems.length; i++) {
+        const item = targetItems[i];
+        setCategorizingProgress({ current: i + 1, total: targetItems.length });
+        
+        try {
+          const response = await secureFetch("/api/ai/vault-categorize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: item.title,
+              content: item.content || '',
+              type: item.type
+            })
+          });
+          if (response.ok) {
+            const result = await response.json();
+            const itemRef = doc(db, 'users', currentUser.uid, 'vault', item.id);
+            await updateDoc(itemRef, {
+              category: result.category,
+              aiReason: result.reason,
+              aiTags: result.tags || []
+            });
+          }
+        } catch (e) {
+          console.error(`Failed to categorize item ${item.title}:`, e);
+        }
+      }
+      setToast({ message: "AI Vault Organization scan completed!", type: 'success' });
+    } catch (err) {
+      console.error(err);
+      setToast({ message: "AI Vault Scan interrupted.", type: 'error' });
+    } finally {
+      setIsCategorizingAll(false);
+    }
+  };
+
   useEffect(() => {
     if (!vaultUnlocked || !currentUser) return;
     setLoadingVault(true);
@@ -223,13 +311,56 @@ export default function Profile() {
     e.preventDefault();
     if (!currentUser || !newVaultItem.title) return;
     try {
-      await addDoc(collection(db, 'users', currentUser.uid, 'vault'), {
+      let defaultCategory = "Unsorted Notes";
+      if (newVaultItem.type === 'password') {
+        defaultCategory = "Credentials & Passwords";
+      } else if (newVaultItem.type === 'media') {
+        defaultCategory = "Media Archives";
+      } else {
+        defaultCategory = "Personal Documents";
+      }
+
+      const docRef = await addDoc(collection(db, 'users', currentUser.uid, 'vault'), {
         ...newVaultItem,
+        category: defaultCategory,
         createdAt: serverTimestamp(),
       });
+
+      const addedId = docRef.id;
+      const addedItem = { id: addedId, ...newVaultItem };
+
       setNewVaultItem({ title: '', content: '', type: 'note' });
       setShowAddVaultModal(false);
       setToast({ message: "Item deposited securely", type: 'success' });
+
+      // Run AI categorization asynchronously in the background
+      setTimeout(async () => {
+        try {
+          const { secureFetch } = await import('../lib/secureFetch');
+          const response = await secureFetch("/api/ai/vault-categorize", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              title: addedItem.title,
+              content: addedItem.content || '',
+              type: addedItem.type
+            })
+          });
+          if (response.ok) {
+            const result = await response.json();
+            const itemRef = doc(db, 'users', currentUser.uid, 'vault', addedId);
+            await updateDoc(itemRef, {
+              category: result.category,
+              aiReason: result.reason,
+              aiTags: result.tags || []
+            });
+            setToast({ message: `Smart categorization complete: "${addedItem.title}" categorized as ${result.category}!`, type: 'success' });
+          }
+        } catch (bgErr) {
+          console.warn("Background AI categorization failed:", bgErr);
+        }
+      }, 500);
+
     } catch (err) {
       console.error("Vault insertion failed", err);
       setToast({ message: "Could not add to vault", type: 'error' });
@@ -1905,97 +2036,224 @@ export default function Profile() {
                        <motion.div
                          initial={{ opacity: 0 }}
                          animate={{ opacity: 1 }}
-                         className="w-full h-full"
+                         className="w-full h-full flex flex-col"
                        >
-                          <div className="flex justify-between items-center mb-6 px-2">
-                             <div className="relative flex-1 mr-4">
-                                <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
-                                <input type="text" placeholder="Search Vault..." className="w-full bg-white/70 backdrop-blur border border-zinc-200 rounded-xl py-2.5 pl-9 pr-4 text-xs focus:ring-1 focus:ring-zinc-400 outline-none shadow-sm" />
+                          <div className="flex justify-between items-center mb-4 px-2">
+                              <div className="relative flex-1 mr-4">
+                                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400" size={14} />
+                                 <input 
+                                   type="text" 
+                                   placeholder="Search Vault..." 
+                                   value={vaultSearch}
+                                   onChange={(e) => setVaultSearch(e.target.value)}
+                                   className="w-full bg-white/70 backdrop-blur border border-zinc-200 rounded-xl py-2.5 pl-9 pr-4 text-xs focus:ring-1 focus:ring-zinc-400 outline-none shadow-sm" 
+                                 />
+                              </div>
+                              <div className="flex items-center gap-2">
+                                 <button 
+                                   onClick={() => {
+                                     setVaultUnlocked(false);
+                                     setVaultPasswordInput('');
+                                     setToast({ message: "Vault quick-hidden", type: 'success' });
+                                   }}
+                                   className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2 cursor-pointer"
+                                   title="Quick Hide (ESC)"
+                                   style={{ border: 'none' }}
+                                 >
+                                    <EyeOff size={14} />
+                                    Quick Hide
+                                 </button>
+                                 <button 
+                                   onClick={() => setVaultUnlocked(false)}
+                                   className="p-2.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors cursor-pointer"
+                                   title="Lock Vault"
+                                   style={{ border: 'none' }}
+                                 >
+                                    <Lock size={16} />
+                                 </button>
+                              </div>
+                           </div>
+
+                           {/* Smart Folders Grid */}
+                           <div className="mb-4 text-left w-full px-2">
+                             <div className="flex items-center justify-between mb-2 px-1">
+                               <span className="text-[10px] font-mono font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-1">
+                                 <Sparkles size={11} className="text-amber-500 animate-pulse" /> Smart Folders
+                               </span>
+                               <button
+                                 onClick={handleAICategorizeAll}
+                                 disabled={isCategorizingAll || vaultItems.length === 0}
+                                 className="text-[9px] font-mono uppercase font-black tracking-widest text-amber-500 hover:text-amber-600 disabled:opacity-40 transition-opacity flex items-center gap-1 cursor-pointer"
+                                 style={{ border: 'none', background: 'none' }}
+                               >
+                                 {isCategorizingAll ? (
+                                   <>
+                                     <Loader2 size={10} className="animate-spin" />
+                                     Scanning ({categorizingProgress.current}/{categorizingProgress.total})
+                                   </>
+                                 ) : (
+                                   <>
+                                     <Sparkles size={10} />
+                                     AI Organize
+                                   </>
+                                 )}
+                               </button>
                              </div>
-                             <div className="flex items-center gap-2">
-                                <button 
-                                  onClick={() => {
-                                    setVaultUnlocked(false);
-                                    setVaultPasswordInput('');
-                                    toast.success("Vault quick-hidden", { icon: <Shield size={16} /> });
-                                  }}
-                                  className="px-4 py-2 bg-red-500/10 text-red-600 rounded-xl text-[10px] font-mono font-bold uppercase tracking-widest hover:bg-red-500/20 transition-all flex items-center gap-2"
-                                  title="Quick Hide (ESC)"
-                                >
-                                   <EyeOff size={14} />
-                                   Quick Hide
-                                </button>
-                                <button 
-                                  onClick={() => setVaultUnlocked(false)}
-                                  className="p-2.5 bg-zinc-100 hover:bg-zinc-200 rounded-xl text-zinc-600 transition-colors"
-                                  title="Lock Vault"
-                                >
-                                   <Lock size={16} />
-                                </button>
-                             </div>
-                          </div>
-                          <div className="flex flex-col items-center justify-center min-h-[220px]">
-                            <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-sm border border-zinc-100 mb-4">
-                               <Bookmark className="text-zinc-300 w-8 h-8" />
-                            </div>
-                                                         <div className="overflow-y-auto max-h-[250px] w-full px-2 space-y-3 scrollbar-none">
-                             {loadingVault ? (
-                               <div className="flex justify-center items-center py-12 text-zinc-400 gap-2 font-mono">
-                                 <Loader2 className="animate-spin text-zinc-500" size={16} />
-                                 <span>Unlocking Vault...</span>
-                               </div>
-                             ) : vaultItems.filter(item => 
-                               item.title?.toLowerCase().includes(vaultSearch.toLowerCase()) || 
-                               item.content?.toLowerCase().includes(vaultSearch.toLowerCase())
-                             ).length > 0 ? (
-                               vaultItems.filter(item => 
-                                 item.title?.toLowerCase().includes(vaultSearch.toLowerCase()) || 
-                                 item.content?.toLowerCase().includes(vaultSearch.toLowerCase())
-                               ).map((item) => (
-                                 <div key={item.id} className="p-4 bg-white border border-zinc-100 rounded-xl flex items-center justify-between shadow-sm hover:border-zinc-200 transition-all text-left">
-                                   <div className="flex items-start gap-3">
-											  <div className="p-2.5 bg-zinc-50 rounded-xl text-zinc-500 border border-zinc-100 flex-shrink-0 mt-0.5">
-												{item.type === 'password' ? <Key size={14} /> : item.type === 'media' ? <ImageIcon size={14} /> : <Bookmark size={14} />}
-											  </div>
-											  <div className="text-left flex-1 min-w-0">
-												<div className="flex items-center gap-2">
-												  <h5 className="text-[12px] font-bold text-zinc-900 truncate">{item.title}</h5>
-												  <span className="px-1.5 py-0.5 bg-zinc-100 rounded text-[8px] font-mono font-bold text-zinc-500 uppercase tracking-wider">{item.type}</span>
-												</div>
-												{item.type === 'media' ? (
-												  <div className="mt-2 relative group w-40 h-24 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-950 cursor-pointer shadow-sm active:scale-95 transition-all" onClick={() => setLightboxImage(item.content)}>
-													<img src={item.content} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="vault media" referrerPolicy="no-referrer" />
-													<div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1 px-2 flex justify-between items-center z-10">
-													  <span className="text-[8px] font-mono font-bold text-white uppercase tracking-wider">Decrypt File</span>
-													  <ScanLine size={10} className="text-zinc-400 group-hover:text-emerald-400 animate-pulse" />
-													</div>
-													<div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-100 group-hover:opacity-0 transition-opacity">
-													  <Lock size={12} className="text-white/80" />
-													</div>
-												  </div>
-												) : (
-												  <p className="text-[11px] text-zinc-600 font-sans mt-0.5 whitespace-pre-wrap break-all">{item.content}</p>
-												)}
-											  </div>
-											</div>
-                                   <button 
-                                     onClick={() => handleDeleteVaultItem(item.id)}
-                                     className="p-2 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
-                                     title="Purged Item"
+                             <div className="flex gap-1.5 overflow-x-auto pb-2 scrollbar-none no-scrollbar">
+                               {[
+                                 { name: 'All', icon: LayoutGrid },
+                                 { name: 'Personal Documents', icon: Bookmark },
+                                 { name: 'Credentials & Passwords', icon: Key },
+                                 { name: 'Spiritual Notes', icon: Sparkles },
+                                 { name: 'Technical Codes', icon: CodeIcon },
+                                 { name: 'Media Archives', icon: ImageIcon },
+                                 { name: 'Unsorted Notes', icon: Folder }
+                               ].map((f) => {
+                                 const isSelected = selectedFolder === f.name;
+                                 const count = f.name === 'All' 
+                                   ? vaultItems.length 
+                                   : vaultItems.filter(item => getFolderForItem(item) === f.name).length;
+                                 const IconComponent = f.icon;
+                                 return (
+                                   <button
+                                     key={f.name}
+                                     onClick={() => setSelectedFolder(f.name)}
+                                     className={cn(
+                                       "px-2.5 py-1.5 rounded-xl text-[9px] font-mono uppercase font-extrabold tracking-wider border transition-all flex items-center gap-1.5 whitespace-nowrap cursor-pointer",
+                                       isSelected
+                                         ? "bg-zinc-950 text-white border-zinc-950 scale-[1.02] shadow-sm"
+                                         : "bg-white border-zinc-150 text-zinc-500 hover:text-zinc-850 hover:border-zinc-300"
+                                     )}
+                                     style={{ border: '1px solid' }}
                                    >
-                                     <Trash2 size={14} />
+                                     <IconComponent size={10} className={isSelected ? "text-amber-400" : "text-zinc-400"} />
+                                     <span>{f.name}</span>
+                                     <span className={cn(
+                                       "px-1 py-0.25 rounded-full text-[8px] font-mono font-bold",
+                                       isSelected ? "bg-amber-500/20 text-amber-400" : "bg-zinc-100 text-zinc-500"
+                                     )}>
+                                       {count}
+                                     </span>
                                    </button>
-                                 </div>
-                               ))
-                             ) : (
-                               <div className="flex flex-col items-center justify-center py-12">
-                                 <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-zinc-100 mb-4">
-                                    <Bookmark className="text-zinc-300 w-6 h-6" />
-                                 </div>
-                                 <p className="text-[11px] font-mono font-bold uppercase tracking-widest text-zinc-400">Vault Empty</p>
-                                 <p className="text-[10px] text-zinc-500 mt-2 text-center max-w-[200px] font-medium leading-relaxed">Your encrypted vault is currently silent. Secure cards or notes here.</p>
-                               </div>
-                             )}
+                                 );
+                               })}
+                             </div>
+                           </div>
+
+                           <div className="overflow-y-auto max-h-[250px] w-full px-2 space-y-2.5 scrollbar-none">
+                              {loadingVault ? (
+                                <div className="flex justify-center items-center py-12 text-zinc-400 gap-2 font-mono">
+                                  <Loader2 className="animate-spin text-zinc-500" size={16} />
+                                  <span>Unlocking Vault...</span>
+                                </div>
+                              ) : vaultItems.filter(item => {
+                                  if (selectedFolder !== 'All' && getFolderForItem(item) !== selectedFolder) {
+                                    return false;
+                                  }
+                                  const searchLower = vaultSearch.toLowerCase();
+                                  return (
+                                    item.title?.toLowerCase().includes(searchLower) || 
+                                    item.content?.toLowerCase().includes(searchLower) ||
+                                    getFolderForItem(item).toLowerCase().includes(searchLower)
+                                  );
+                                }).length > 0 ? (
+                                vaultItems.filter(item => {
+                                  if (selectedFolder !== 'All' && getFolderForItem(item) !== selectedFolder) {
+                                    return false;
+                                  }
+                                  const searchLower = vaultSearch.toLowerCase();
+                                  return (
+                                    item.title?.toLowerCase().includes(searchLower) || 
+                                    item.content?.toLowerCase().includes(searchLower) ||
+                                    getFolderForItem(item).toLowerCase().includes(searchLower)
+                                  );
+                                }).map((item) => (
+                                  <div key={item.id} className="p-3.5 bg-white border border-zinc-100 rounded-xl flex items-center justify-between shadow-sm hover:border-zinc-200 transition-all text-left">
+                                    <div className="flex items-start gap-3 flex-1 min-w-0">
+                                      <div className="p-2 bg-zinc-50 rounded-xl text-zinc-500 border border-zinc-100 flex-shrink-0 mt-0.5">
+                                        {item.type === 'password' ? <Key size={13} /> : item.type === 'media' ? <ImageIcon size={13} /> : <Bookmark size={13} />}
+                                      </div>
+                                      <div className="text-left flex-1 min-w-0">
+                                        <div className="flex items-center gap-1.5 flex-wrap">
+                                          <h5 className="text-[12px] font-bold text-zinc-900 truncate">{item.title}</h5>
+                                          <span className="px-1 py-0.25 bg-zinc-100 rounded text-[7px] font-mono font-bold text-zinc-500 uppercase tracking-wider">{item.type}</span>
+                                        </div>
+                                        {item.type === 'media' ? (
+                                          <div className="mt-2 relative group w-36 h-20 rounded-lg overflow-hidden border border-zinc-200 bg-zinc-950 cursor-pointer shadow-sm active:scale-95 transition-all" onClick={() => setLightboxImage(item.content)}>
+                                            <img src={item.content} className="w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" alt="vault media" referrerPolicy="no-referrer" />
+                                            <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/90 to-transparent p-1 px-2 flex justify-between items-center z-10">
+                                              <span className="text-[8px] font-mono font-bold text-white uppercase tracking-wider">Decrypt File</span>
+                                              <ScanLine size={9} className="text-zinc-400 group-hover:text-emerald-400 animate-pulse" />
+                                            </div>
+                                            <div className="absolute inset-0 flex items-center justify-center bg-black/45 opacity-100 group-hover:opacity-0 transition-opacity">
+                                              <Lock size={11} className="text-white/80" />
+                                            </div>
+                                          </div>
+                                        ) : (
+                                          <p className="text-[11px] text-zinc-600 font-sans mt-0.5 whitespace-pre-wrap break-all">{item.content}</p>
+                                        )}
+
+                                        {/* Smart Folder details and AI tags */}
+                                        <div className="flex flex-wrap gap-1 mt-2 items-center">
+                                          <span className={cn(
+                                            "px-1.5 py-0.5 rounded text-[7px] font-mono font-bold uppercase tracking-wider border flex items-center gap-0.5",
+                                            getFolderForItem(item) === 'Spiritual Notes' ? 'bg-amber-50/50 text-amber-600 border-amber-200/50' :
+                                            getFolderForItem(item) === 'Credentials & Passwords' ? 'bg-rose-50/50 text-rose-600 border-rose-200/50' :
+                                            getFolderForItem(item) === 'Technical Codes' ? 'bg-violet-50/50 text-violet-600 border-violet-200/50' :
+                                            getFolderForItem(item) === 'Media Archives' ? 'bg-blue-50/50 text-blue-600 border-blue-200/50' :
+                                            'bg-emerald-50/50 text-emerald-600 border-emerald-200/50'
+                                          )}>
+                                            {item.category ? '✨ ' : ''}{getFolderForItem(item)}
+                                          </span>
+
+                                          {item.aiTags && item.aiTags.map((tag: string) => (
+                                            <span key={tag} className="px-1 py-0.25 bg-zinc-50 border border-zinc-150 rounded text-[7px] font-mono text-zinc-400">
+                                              #{tag}
+                                            </span>
+                                          ))}
+                                        </div>
+
+                                        {/* AI Reason explanation */}
+                                        {item.aiReason && (
+                                          <div className="mt-1.5 p-1.5 bg-amber-500/5 border border-amber-500/10 rounded-lg flex items-start gap-1">
+                                            <Sparkles size={8} className="text-amber-500 shrink-0 mt-0.5 animate-pulse" />
+                                            <p className="text-[9px] font-sans text-zinc-500 leading-tight">
+                                              <span className="font-mono font-bold text-amber-600 text-[8px] uppercase tracking-wider mr-1">AI Classification:</span>
+                                              {item.aiReason}
+                                            </p>
+                                          </div>
+                                        )}
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-1 ml-2 flex-shrink-0">
+                                      <button 
+                                        onClick={() => handleAITransformItem(item)}
+                                        className="p-1.5 hover:bg-amber-50 text-zinc-400 hover:text-amber-500 rounded-lg transition-colors cursor-pointer"
+                                        title="AI Smart Organize"
+                                        style={{ border: 'none', background: 'none' }}
+                                      >
+                                        <Sparkles size={12} />
+                                      </button>
+                                      <button 
+                                        onClick={() => handleDeleteVaultItem(item.id)}
+                                        className="p-1.5 hover:bg-red-50 text-zinc-400 hover:text-red-500 rounded-lg transition-colors cursor-pointer"
+                                        title="Purge Item"
+                                        style={{ border: 'none', background: 'none' }}
+                                      >
+                                        <Trash2 size={12} />
+                                      </button>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="flex flex-col items-center justify-center py-12">
+                                  <div className="w-12 h-12 bg-white rounded-full flex items-center justify-center shadow-sm border border-zinc-100 mb-4">
+                                     <Bookmark className="text-zinc-300 w-6 h-6" />
+                                  </div>
+                                  <p className="text-[11px] font-mono font-bold uppercase tracking-widest text-zinc-400">Folder Empty</p>
+                                  <p className="text-[10px] text-zinc-500 mt-2 text-center max-w-[200px] font-medium leading-relaxed">No encrypted items matching this folder filter or search term.</p>
+                                </div>
+                              )}
                            </div>
 
                            <div className="mt-6 flex items-center justify-center gap-2">
@@ -2145,9 +2403,7 @@ export default function Profile() {
                             
                             <div className="mt-8 flex items-center gap-2">
                                <div className="w-1.5 h-1.5 bg-wa-primary rounded-full animate-pulse" />
-                               
                             </div>
-                          </div>
                        </motion.div>
                      )}
                    </AnimatePresence>

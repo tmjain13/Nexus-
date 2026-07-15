@@ -1395,6 +1395,60 @@ Important: Respond only with raw, valid JSON. Do not include markdown wraps.`;
     }
   });
 
+  // SECURE VAULT INTELLIGENT CATEGORIZATION ENDPOINT
+  app.post("/api/ai/vault-categorize", async (req, res) => {
+    try {
+      const { title, content, type } = req.body;
+      if (!title || typeof title !== "string") {
+        return res.status(400).json({ error: "Title is required for categorization." });
+      }
+
+      const apiKey = process.env.GEMINI_API_KEY;
+      if (!apiKey) {
+        return res.status(500).json({ error: "GEMINI_API_KEY not configured" });
+      }
+
+      const ai = new GoogleGenAI({
+        apiKey,
+        httpOptions: { headers: { "User-Agent": "aistudio-build" } }
+      });
+
+      const prompt = `Analyze the following secure vault item and determine its correct semantic category.
+      Item details:
+      - Title: "${title}"
+      - Type: "${type}"
+      - Content/Snippet: "${content ? content.slice(0, 1000) : ''}"
+
+      Categorize it into one of these strict categories:
+      - "Personal Documents" (for identity, notes, receipts, personal letters, documents)
+      - "Credentials & Passwords" (for keys, passwords, logins, accounts)
+      - "Spiritual Notes" (for meditation, mantra, religious teachings, spiritual logs, self-improvement notes)
+      - "Technical Codes" (for code blocks, settings, APIs, config keys, technical snippets)
+      - "Media Archives" (for images, pictures, attachments, media descriptions)
+      - "Unsorted Notes" (fallback if it does not fit any of the above)
+
+      Respond STRICTLY in JSON format with this structure:
+      {
+        "category": "Personal Documents" | "Credentials & Passwords" | "Spiritual Notes" | "Technical Codes" | "Media Archives" | "Unsorted Notes",
+        "reason": "Brief 1-sentence reason why it fits this category based on content",
+        "tags": ["tag1", "tag2", "tag3"]
+      }
+      Do not wrap in markdown or blockquotes.`;
+
+      const response = await ai.models.generateContent({
+        model: "gemini-3.5-flash",
+        contents: prompt
+      });
+
+      const resultText = response.text || "{}";
+      const cleaned = resultText.replace(/\`\`\`json|\`\`\`/g, "").trim();
+      res.json(JSON.parse(cleaned));
+    } catch (error: any) {
+      console.error("Vault Categorize AI Error:", error);
+      res.status(500).json({ error: "Failed to categorize secure vault item." });
+    }
+  });
+
   app.post("/api/calendar/sync", async (req, res) => {
     try {
       const { accessToken, summary, startTime, endTime } = req.body;
