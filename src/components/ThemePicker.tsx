@@ -268,6 +268,7 @@ export function ThemePicker() {
     
     // Set custom theme CSS variables
     root.style.setProperty('--color-wa-primary', themeColors.primary);
+    root.style.setProperty('--color-accent', themeColors.primary);
     root.style.setProperty('--color-bg-custom', themeColors.background);
     root.style.setProperty('--color-surface-custom', themeColors.surface);
     root.style.setProperty('--color-text-custom', themeColors.text);
@@ -281,6 +282,7 @@ export function ThemePicker() {
       root.style.setProperty('--color-wa-primary-glow', `rgba(${r}, ${g}, ${b}, 0.15)`);
       root.style.setProperty('--color-wa-primary-glow-strong', `rgba(${r}, ${g}, ${b}, 0.3)`);
       root.style.setProperty('--color-wa-primary-rgb', `${r}, ${g}, ${b}`);
+      root.style.setProperty('--color-accent-glow', `rgba(${r}, ${g}, ${b}, 0.15)`);
     } catch (e) {}
 
     setPrimaryAccent(themeColors.primary);

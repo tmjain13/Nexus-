@@ -5,6 +5,7 @@ import { AIMessage, AIAction } from '../hooks/useAIAssistant';
 import { useAuth } from '../context/AuthContext';
 
 interface AIMessageBubbleProps {
+  key?: React.Key;
   message: AIMessage;
   onExecuteAction: (action: AIAction) => Promise<void>;
 }
