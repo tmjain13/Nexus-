@@ -12,7 +12,7 @@ interface EditHistoryModalProps {
   messageId: string;
   chatId: string;
   isGroup?: boolean;
-  sharedKey?: string | null;
+  sharedKey?: CryptoKey | null;
   userId: string;
   isAdmin?: boolean;
   groupParticipants?: any[];

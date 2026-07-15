@@ -6,6 +6,7 @@ import {
 import { EmailThread, EmailMessage } from '../../hooks/useEmailInbox';
 import { EmailAttachmentViewer } from './EmailAttachmentViewer';
 import { useAuth } from '../../context/AuthContext';
+import { sanitizeHtml } from '../../lib/sanitize';
 
 interface EmailThreadViewProps {
   thread: EmailThread;
@@ -227,7 +228,7 @@ export function EmailThreadView({
                 {/* Message Body (using safe HTML fallback renderer) */}
                 <div className="text-slate-300 text-xs leading-relaxed prose-sm break-words whitespace-pre-wrap pl-1 mb-3">
                   {msg.bodyHtml ? (
-                    <div dangerouslySetInnerHTML={{ __html: msg.bodyHtml }} />
+                    <div dangerouslySetInnerHTML={{ __html: sanitizeHtml(msg.bodyHtml) }} />
                   ) : (
                     msg.body
                   )}

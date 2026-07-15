@@ -14,6 +14,7 @@ interface ChatListItemProps {
   isUnread: boolean;
   unreadCount: number;
   isPinned: boolean;
+  isFavorite?: boolean;
   isSelectionMode: boolean;
   isSelected: boolean;
   density: 'compact' | 'default' | 'comfortable';
@@ -81,6 +82,7 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
   isUnread,
   unreadCount,
   isPinned,
+  isFavorite = false,
   isSelectionMode,
   isSelected,
   density,
@@ -237,10 +239,13 @@ export const ChatListItem: React.FC<ChatListItemProps> = ({
               )}
             >
               {isPinned && <Pin size={11} className="text-accent -rotate-45" />}
+              {isFavorite && <Heart size={11} className="text-rose-500 fill-rose-500" />}
               <span className="truncate">{chatTitle}</span>
               
               {chat.settings?.disappearingTimer > 0 && (
-                <Hourglass size={11} className="text-accent shrink-0 animate-pulse" title="Disappearing messages" />
+                <span title="Disappearing messages">
+                  <Hourglass size={11} className="text-accent shrink-0 animate-pulse" />
+                </span>
               )}
               
               {chat.isChannel && (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, Variants } from 'motion/react';
 import { cn } from '../lib/utils';
 
 interface ReactionPickerProps {
@@ -11,7 +11,7 @@ interface ReactionPickerProps {
 
 const EMOJIS = ['👍', '❤️', '😂', '😮', '😢', '🔥', '✨', '🙏'];
 
-const containerVariants = {
+const containerVariants: Variants = {
   hidden: { opacity: 0, scale: 0.85, y: 8 },
   visible: {
     opacity: 1,
@@ -36,7 +36,7 @@ const containerVariants = {
   }
 };
 
-const itemVariants = {
+const itemVariants: Variants = {
   hidden: { scale: 0, opacity: 0 },
   visible: { 
     scale: 1, 

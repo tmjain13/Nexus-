@@ -28,8 +28,8 @@ const EnclaveMap = lazy(() => import('./components/EnclaveMap'));
 const ReelsPage = lazy(() => import('./pages/Reels'));
 const AdvanceChatEngine = lazy(() => import('./components/AdvanceChatEngine').then(module => ({ default: module.AdvanceChatEngine })));
 const ActiveCall = lazy(() => import('./pages/ActiveCall'));
-const ChannelDiscover = lazy(() => import('./components/ChannelDiscover'));
-const ChannelChatRoom = lazy(() => import('./components/ChannelChatRoom'));
+const ChannelDiscover = lazy(() => import('./components/ChannelDiscover').then(module => ({ default: module.ChannelDiscover })));
+const ChannelChatRoom = lazy(() => import('./components/ChannelChatRoom').then(module => ({ default: module.ChannelChatRoom })));
 const NexusAIChat = lazy(() => import('./components/NexusAIChat'));
 
 import { useBackgroundMessageScheduler } from './hooks/useScheduledMessages';
@@ -37,6 +37,33 @@ import IncomingCallModal from './components/IncomingCallModal';
 import { useCallSignaling } from './hooks/useCallSignaling';
 import NotificationToast from './components/NotificationToast';
 import { UniversalSearchOverlay } from './components/UniversalSearchOverlay';
+import { useChannels } from './hooks/useChannels';
+
+function ChannelDiscoverRoute() {
+  const navigate = useNavigate();
+  const { subscribedChannels } = useChannels();
+
+  return (
+    <ChannelDiscover
+      onSelectChannel={(channelId) => navigate(`/channels/${channelId}`)}
+      subscribedIds={subscribedChannels.map(c => c.id)}
+    />
+  );
+}
+
+function ChannelChatRoomRoute() {
+  const { channelId } = useParams<{ channelId: string }>();
+  const navigate = useNavigate();
+  const { subscribedChannels } = useChannels();
+
+  return (
+    <ChannelChatRoom
+      channelId={channelId || ''}
+      onBack={() => navigate('/discover-channels')}
+      subscribedIds={subscribedChannels.map(c => c.id)}
+    />
+  );
+}
 
 function InviteRedirectHandler() {
   const { userId } = useParams();
@@ -204,8 +231,8 @@ function AppRoutes() {
                 <Route path="/ai" element={<NexusAIChat />} />
                 <Route path="/inbox" element={<Inbox />} />
                 <Route path="/chats/:chatId" element={<ChatRoom />} />
-                <Route path="/discover-channels" element={<ChannelDiscover />} />
-                <Route path="/channels/:channelId" element={<ChannelChatRoom />} />
+                <Route path="/discover-channels" element={<ChannelDiscoverRoute />} />
+                <Route path="/channels/:channelId" element={<ChannelChatRoomRoute />} />
                 <Route path="/profile" element={<Profile />} />
                 <Route path="/profile/:userId" element={<Profile />} />
                 <Route path="/contacts" element={<Contacts />} />

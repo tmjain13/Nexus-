@@ -110,7 +110,8 @@ import {
   Hourglass,
   ZoomIn,
   ZoomOut,
-  RotateCw
+  RotateCw,
+  Info
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -1033,9 +1034,9 @@ export default function ChatRoom() {
   const locationWatchId = useRef<number | null>(null);
   const [autoScrollEnabled, setAutoScrollEnabled] = useState(true);
   const [showScrollToBottom, setShowScrollToBottom] = useState(false);
-  const [toast, setToast] = useState<{ 
-    message: string; 
-    type: 'success' | 'error';
+  const [toast, setToast] = useState<{
+    message: string;
+    type: 'success' | 'error' | 'info';
     action?: { label: string; onClick: () => void };
   } | null>(null);
   const [swipingMessageId, setSwipingMessageId] = useState<string | null>(null);
@@ -1215,7 +1216,7 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
     } else {
       stopQRScanner();
     }
-    return () => stopQRScanner();
+    return () => { stopQRScanner(); };
   }, [showQRScanner]);
 
   const startMessagePress = (e: React.MouseEvent | React.TouchEvent, msgId: string) => {
@@ -5506,9 +5507,9 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
       >
         {disappearingSettings && disappearingSettings.timer > 0 && (
           <div className="mb-4 flex justify-center">
-            <DisappearingBanner 
-              timer={disappearingSettings.timer} 
-              onSettingsClick={() => setShowDisappearingModal(true)} 
+            <DisappearingBanner
+              timer={disappearingSettings.timer}
+              onConfigure={() => setShowDisappearingModal(true)}
             />
           </div>
         )}
@@ -5899,7 +5900,7 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
                           />
                           <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/40 to-transparent flex justify-end items-center gap-1.5 z-10">
                             {msg.expiresAt && (
-                              <ExpiryIndicator expiresAt={msg.expiresAt} />
+                              <ExpiryIndicator message={msg} />
                             )}
                             <span className="text-[10px] font-mono text-white/95">
                               {msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'h:mm a') : format(new Date(), 'h:mm a')}
@@ -5938,7 +5939,7 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
                           />
                           <div className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/40 to-transparent flex justify-end items-center gap-1.5 pointer-events-none z-10">
                             {msg.expiresAt && (
-                              <ExpiryIndicator expiresAt={msg.expiresAt} />
+                              <ExpiryIndicator message={msg} />
                             )}
                             <span className="text-[10px] font-mono text-white/95">
                               {msg.createdAt?.toDate ? format(msg.createdAt.toDate(), 'h:mm a') : format(new Date(), 'h:mm a')}
@@ -6428,7 +6429,7 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
                           </div>
                         )}
                         {msg.expiresAt && (
-                          <ExpiryIndicator expiresAt={msg.expiresAt} />
+                          <ExpiryIndicator message={msg} />
                         )}
                         {!isPeaceModeActive && (
                           <span className={cn(
@@ -8265,12 +8266,12 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
             animate={{ opacity: 1, y: 0, x: '-50%' }}
             exit={{ opacity: 0, y: 100, x: '-50%' }}
             className="fixed bottom-10 left-1/2 z-[150] px-6 py-4 rounded-2xl shadow-2xl flex items-center gap-3 min-w-[300px] border border-white/20 backdrop-blur-xl"
-            style={{ 
-              backgroundColor: toast.type === 'success' ? '#25D366' : '#ef4444',
+            style={{
+              backgroundColor: toast.type === 'success' ? '#25D366' : toast.type === 'error' ? '#ef4444' : '#f59e0b',
               color: 'white'
             }}
           >
-            {toast.type === 'success' ? <CheckCircle size={20} /> : <ShieldAlert size={20} />}
+            {toast.type === 'success' ? <CheckCircle size={20} /> : toast.type === 'error' ? <ShieldAlert size={20} /> : <Info size={20} />}
             <div className="flex-1 flex flex-col">
               <span className="text-sm font-bold">{toast.message}</span>
               <span className="text-[10px] opacity-80 uppercase font-bold tracking-widest">Notification</span>
@@ -8506,11 +8507,9 @@ ${chatContext || "No previous messages. Welcome to the workspace. Peace OS proto
         <DisappearingMessageToggle
           isOpen={showDisappearingModal}
           onClose={() => setShowDisappearingModal(false)}
-          timer={disappearingSettings?.timer || 0}
-          onUpdate={updateDisappearingTimer}
-          isGroup={isGroup}
-          chatInfo={chatInfo}
-          currentUserUid={user?.uid}
+          currentTimer={disappearingSettings?.timer || 0}
+          onSave={updateDisappearingTimer}
+          isAdminOrDM={!isGroup || (chatInfo?.admins?.includes(user?.uid) ?? false)}
         />
       )}
 

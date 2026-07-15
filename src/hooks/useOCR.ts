@@ -22,9 +22,11 @@ export interface OCRResult {
     keyTerms?: string[];
     dates?: string[];
     signaturesFound?: boolean;
+    signatureUrl?: string;
     name?: string;
     idNumber?: string;
     expiryDate?: string;
+    confidence?: number;
   };
 }
 
